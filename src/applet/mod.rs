@@ -580,13 +580,32 @@ impl StatusHub {
             false,
             self.appearance.colour_icons(),
         );
+
         let spacing = self.tray_spacing();
+        let items = popup_items
+            .into_iter()
+            .map(|item| self.item_button(item))
+            .chain(std::iter::once(self.settings_button()));
+
         popup::item_grid(
-            popup_items.into_iter().map(|item| self.item_button(item)),
+            items,
             spacing,
             self.tray_geometry().height,
             self.grid_inset(),
         )
+    }
+
+    fn settings_button(&self) -> Element<'_, Message> {
+        let size = self.item_icon_size();
+
+        let button = self
+            .applet_button(Self::icon_glyph(symbols::settings(), size))
+            .force_enabled(true);
+
+        mouse_area(button)
+            .interaction(Interaction::Pointer)
+            .on_press(Message::OpenSettings)
+            .into()
     }
 
     fn settings_body(&self) -> Element<'_, Message> {
