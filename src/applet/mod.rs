@@ -20,7 +20,6 @@ use cosmic::iced::mouse::Interaction;
 use cosmic::iced::platform_specific::runtime::wayland::popup::SctkPositioner;
 use cosmic::iced::platform_specific::shell::commands::popup::destroy_popup;
 use cosmic::iced::{Length, Subscription, window};
-use cosmic::widget::button::Catalog as _;
 use cosmic::widget::{DndSource, Id, dnd_destination, icon, list, mouse_area, text};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -117,40 +116,6 @@ fn symbolic_ink() -> cosmic::theme::Svg {
     }
 
     INK.with(cosmic::theme::Svg::clone)
-}
-
-fn neutral_ink_style(
-    mut style: cosmic::widget::button::Style,
-    theme: &cosmic::Theme,
-) -> cosmic::widget::button::Style {
-    let ink = theme.cosmic().background(theme.transparent).on;
-    style.icon_color = Some(ink.into());
-    style.text_color = Some(ink.into());
-    style
-}
-
-fn flat_button() -> cosmic::theme::Button {
-    cosmic::theme::Button::Custom {
-        active: Box::new(|focused, theme| {
-            neutral_ink_style(
-                theme.active(focused, false, &cosmic::theme::Button::Icon),
-                theme,
-            )
-        }),
-        disabled: Box::new(|theme| theme.disabled(&cosmic::theme::Button::Icon)),
-        hovered: Box::new(|focused, theme| {
-            neutral_ink_style(
-                theme.hovered(focused, false, &cosmic::theme::Button::Icon),
-                theme,
-            )
-        }),
-        pressed: Box::new(|focused, theme| {
-            neutral_ink_style(
-                theme.pressed(focused, false, &cosmic::theme::Button::Icon),
-                theme,
-            )
-        }),
-    }
 }
 
 pub struct StatusHub {
