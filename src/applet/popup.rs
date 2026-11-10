@@ -328,12 +328,6 @@ fn hidden_scroll() -> Direction {
     Direction::Vertical(Scrollbar::hidden())
 }
 
-fn separator<'a, Message: 'static>() -> Element<'a, Message> {
-    container(divider::horizontal::default())
-        .padding([0, MARGIN_X])
-        .into()
-}
-
 fn menu_separator<'a, Message: 'static>() -> Element<'a, Message> {
     container(divider::horizontal::default())
         .padding([0, MARGIN_X])
@@ -486,13 +480,12 @@ pub fn menu_comes_first(anchor: PanelAnchor) -> bool {
 }
 
 pub fn hub_surface<'a, Message: 'static>(
-    header: Element<'a, Message>,
     body: Element<'a, Message>,
     menu: Option<Element<'a, Message>>,
     layout: HubLayout,
     anchor: PanelAnchor,
 ) -> Element<'a, Message> {
-    let hub = vec![header, separator(), body];
+    let hub = vec![body];
     let children = match menu {
         Some(menu) => {
             let menu = container(

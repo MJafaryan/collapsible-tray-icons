@@ -551,44 +551,6 @@ impl StatusHub {
         }
     }
 
-    fn header(&self) -> Element<'_, Message> {
-        let showing_settings = self.body == PopupBody::Settings;
-        let control = f32::from(popup::HEADER_CONTROL);
-
-        let action: Element<'_, Message> = if showing_settings {
-            cosmic::widget::button::icon(cosmic::widget::icon::from_name("object-select-symbolic"))
-                .class(cosmic::widget::button::ButtonClass::Text)
-                .extra_small()
-                .label(fl!("save"))
-                .padding(popup::LINK_INSET)
-                .spacing(popup::LINK_SPACING)
-                .height(Length::Fixed(control))
-                .on_press(Message::SaveSettings)
-                .into()
-        } else {
-            let settings = cosmic::widget::button::icon(symbols::settings())
-                .class(flat_button())
-                .padding(popup::header_icon_padding())
-                .width(Length::Fixed(control))
-                .height(Length::Fixed(control));
-            settings.on_press(Message::OpenSettings).into()
-        };
-
-        let title = if showing_settings {
-            fl!("settings")
-        } else {
-            fl!("app-title")
-        };
-
-        popup::header(
-            title,
-            action,
-            popup::header_height(popup::HEADER_CONTROL, popup::MARGIN_Y),
-            popup::MARGIN_Y,
-            self.menu.is_some().then_some(Message::DismissMenu),
-        )
-    }
-
     fn popup_body(&self) -> Element<'_, Message> {
         match self.body {
             PopupBody::Items => self.items_body(),
@@ -1593,13 +1555,7 @@ impl cosmic::Application for StatusHub {
                 .menu
                 .as_ref()
                 .map(|model| menu_view::view(model, &self.expanded, edges));
-            return popup::hub_surface(
-                self.header(),
-                body,
-                menu,
-                self.hub_layout(),
-                self.core.applet.anchor,
-            );
+            return popup::hub_surface(body, menu, self.hub_layout(), self.core.applet.anchor);
         }
 
         text::body("").into()
