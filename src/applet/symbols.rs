@@ -15,14 +15,10 @@ macro_rules! bundled {
 
 bundled! {
     appearance => "appearance-symbolic.svg",
-    bug => "bug-symbolic.svg",
-    code => "code-symbolic.svg",
     droplet => "droplet-symbolic.svg",
     empty => "empty-symbolic.svg",
     grid => "grid-symbolic.svg",
     grip => "grip-symbolic.svg",
-    link => "link-symbolic.svg",
-    person => "person-symbolic.svg",
     side => "side-symbolic.svg",
 }
 

@@ -436,25 +436,6 @@ impl StatusHub {
         .into()
     }
 
-    fn link_row<'a>(
-        handle: icon::Handle,
-        label: String,
-        url: &'static str,
-    ) -> list::ListButton<'a, Message> {
-        let row = cosmic::widget::row::with_children(vec![
-            Self::symbol(handle, popup::ROW_ICON),
-            text::body(label)
-                .width(Length::Fill)
-                .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
-                .into(),
-            Self::symbol(symbols::link(), popup::ROW_ICON),
-        ])
-        .align_y(cosmic::iced::Alignment::Center)
-        .spacing(cosmic::theme::spacing().space_xs);
-
-        list::button(row).on_press(Message::OpenLink(url))
-    }
-
     fn settings_drag_preview(
         handle: TrayIcon,
         size: u16,
@@ -611,27 +592,6 @@ impl StatusHub {
         };
         let tray = Self::settings_section(symbols::grid(), fl!("tray-icons"), card);
 
-        let links = Self::settings_section(
-            symbols::link(),
-            fl!("links"),
-            Self::settings_card()
-                .add(Self::link_row(
-                    symbols::bug(),
-                    fl!("link-issues"),
-                    links::ISSUES,
-                ))
-                .add(Self::link_row(
-                    symbols::person(),
-                    fl!("link-developer"),
-                    links::DEVELOPER,
-                ))
-                .add(Self::link_row(
-                    symbols::code(),
-                    fl!("link-repository"),
-                    links::REPOSITORY,
-                )),
-        );
-
         let save_button =
             cosmic::widget::button::icon(cosmic::widget::icon::from_name("object-select-symbolic"))
                 .class(cosmic::widget::button::ButtonClass::Text)
@@ -640,14 +600,10 @@ impl StatusHub {
                 .spacing(popup::LINK_SPACING)
                 .on_press(Message::SaveSettings);
 
-        let list = cosmic::widget::column::with_children(vec![
-            appearance,
-            links,
-            tray,
-            save_button.into(),
-        ])
-        .width(Length::Fill)
-        .spacing(popup::section_spacing());
+        let list =
+            cosmic::widget::column::with_children(vec![appearance, tray, save_button.into()])
+                .width(Length::Fill)
+                .spacing(popup::section_spacing());
 
         popup::settings_list(list, popup::settings_body_max_height(), popup::MARGIN_Y)
     }
