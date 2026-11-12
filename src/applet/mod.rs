@@ -632,9 +632,22 @@ impl StatusHub {
                 )),
         );
 
-        let list = cosmic::widget::column::with_children(vec![appearance, links, tray])
-            .width(Length::Fill)
-            .spacing(popup::section_spacing());
+        let save_button =
+            cosmic::widget::button::icon(cosmic::widget::icon::from_name("object-select-symbolic"))
+                .class(cosmic::widget::button::ButtonClass::Text)
+                .label(fl!("save"))
+                .padding(popup::LINK_INSET)
+                .spacing(popup::LINK_SPACING)
+                .on_press(Message::SaveSettings);
+
+        let list = cosmic::widget::column::with_children(vec![
+            appearance,
+            links,
+            tray,
+            save_button.into(),
+        ])
+        .width(Length::Fill)
+        .spacing(popup::section_spacing());
 
         popup::settings_list(list, popup::settings_body_max_height(), popup::MARGIN_Y)
     }
