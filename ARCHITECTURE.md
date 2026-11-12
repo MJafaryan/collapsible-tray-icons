@@ -1,6 +1,6 @@
 # Architecture
 
-Status Hub is a StatusNotifierHost: it watches the session bus for tray items, resolves their
+Collapsible tray icons is a StatusNotifierHost: it watches the session bus for tray items, resolves their
 properties, and renders them in a COSMIC panel applet. This document covers *why* the seams are
 where they are — several exist to defend against a specific failure that tray applications cause in
 practice.
@@ -161,40 +161,6 @@ the snapshot is assembled, alongside duplicate indices and discovery sequences. 
 merely a filter or a preference over an already-built snapshot — pins, drafts — belongs in
 `applet/`, even when the core would be marginally more convenient.
 
-## The applet's popup surfaces
-
-The hub and a context menu opened from one of its items share one Wayland surface and one card,
-with a divider between them, ordered so the hub content stays nearest the panel. Keeping both in
-one `xdg_popup` avoids competing close events and stops the hub button being exposed underneath a
-stale child popup.
-
-A menu opened from an item already pinned to the panel is necessarily its own popup, parented to
-the panel window and anchored to that item's slot. The hub button sits at one end of the strip and
-the pinned items grow away from it. Which end is a stored preference — `HubSide` in
-`applet/appearance.rs`, the right by default — and not something inferred from where the panel
-happens to have put the applet. Deriving it from the panel's own `plugins_wings` and
-`plugins_center` came first and was dropped: a centred block has no edge to face away from, so that
-third case could only guess, and nothing let the user overrule the guess. One preference answers
-every panel, vertical ones included, where the two ends are the top and the bottom.
-
-The main popup is non-reactive and pin changes never issue a reposition request, so the compositor
-cannot reinterpret a stale anchor. They do not need to: the settings view edits a draft, so nothing
-reaches the panel while the popup is up. Saving commits and closes in one step; dismissing discards.
-The panel is static for as long as anything is anchored to it, which makes the anchor correct by
-construction rather than by compensation.
-
-Panel bounds are a maximum on the major axis, not a mandatory size. Each instance shows only the
-pinned items that fit its monitor's bounds, always reserving one slot for the hub; the rest stay in
-that instance's popup. Any number of items can be pinned — the panel already decides how many it
-shows, so a cap on the stored list would only refuse pins the user could reach anyway by unpinning
-something else. Pins and appearance live in `cosmic_config` and every instance watches them, so a
-change on one monitor reaches the others. Both are edited as drafts in the settings view and
-committed together through Save.
-
-`HubLayout` computes the body height in Rust, because `Length::Fixed` ignores a container's
-intrinsic size: it reserves the divider and at least one pixel of menu space before allocating the
-body, and the menu scrolls within what is left.
-
 ## Icon resolution
 
 Which property is read depends on the kind and the item's status: an overlay reads `OverlayIcon*`,
@@ -246,18 +212,6 @@ overlays are cached until the next item generation; they do not start the primar
 ladder. Panel buttons, popup items, settings rows and drag previews all use the same composition:
 the primary icon with a half-size overlay at the bottom right. Each layer fits proportionally
 inside its square, preserving the artwork's aspect ratio.
-
-### Reaching another sandbox's artwork
-
-Steps 2 and 3 also resolve paths this process cannot read (`src/flatpak.rs`). An application in a
-Flatpak names its icon directory from inside its own sandbox, `/app/...`, or under its
-per-application data directory — neither reachable from here, though the same artwork ships in that
-application's payload, which is. A path under `<home>/.var/app/<app id>/` names its owner outright;
-a `/app/<tail>` path is matched against the payloads of installed applications, and **that match
-must be unique or it is refused**, because a tail like `share/icons` is shipped by nearly every
-application (30 of 31 on the machine this was measured on) and serving the wrong artwork is worse
-than serving none. The branch only runs when the published path does not exist, so it is inert
-outside a sandbox.
 
 ### Preparing and painting icons
 
@@ -381,57 +335,6 @@ for a Flatpak application `GetConnectionUnixProcessID` reports its `xdg-dbus-pro
 - **Signals are subscribed before state is read.** `host::connect` subscribes to the registered and
   unregistered streams *before* calling `RegisterStatusNotifierHost` and *before* reading
   `RegisteredStatusNotifierItems`, so no registration slips through the gap between the two.
-
-## Packaging
-
-The Flatpak is Wayland-only, so it does not share the host IPC namespace (that permission is for X11
-shared memory). DRI stays for iced/wgpu rendering, and the session bus cannot be narrowed to a fixed
-list because a StatusNotifierHost must receive registrations from, and call items under, arbitrary
-application bus names.
-
-The read-only filesystem grants are only what icon resolution cannot reach otherwise. Flatpak
-already exposes the host's system and user icon themes on `XDG_DATA_DIRS`, at `/run/host/share` and
-`/run/host/user-share`, without any permission at all, so nothing asks for those. What it leaves out
-is `<installation>/exports/share/icons`, where applications publish the icons they name;
-`extend_data_dirs` (`src/lib.rs`) appends those trees to the value Flatpak set rather than replacing
-it, which is what keeps the free host themes in the search path. Each entry there is a symlink into
-`<installation>/app/<id>/current/active/export`, so the app tree is granted alongside them or every
-link dangles. `~/.icons` is granted because that legacy path is a real search root nothing else
-covers.
-
-The three snapd grants are the same idea for the other packaging format, and they need no
-translation because a granted path keeps its own name inside the sandbox. `/snap` and
-`/var/lib/snapd/snap` are the same tree under the two names distributions give it, so a
-`/snap/<name>/<rev>/...` path a snap publishes resolves wherever it is mounted.
-`/var/lib/snapd/desktop` is snapd's answer to a Flatpak installation's `exports/share`, so
-`snap_root` appends it to `XDG_DATA_DIRS` beside the export trees. All three are absent on a host
-that does not use snap, and Flatpak simply skips a path that is not there.
-
-Nothing reaches into the host's own `/usr`. It would take `host-os`, and the artwork that would
-unlock is rarely there: an application the distribution installed usually exports its icons into a
-theme already on `XDG_DATA_DIRS`, and one that keeps them to itself keeps them in `$HOME`, which
-`host-os` does not carry either. Step 5 of the lookup covers that case without a grant.
-
-`~/.config/cosmic` is the one read-write grant, and it has to be. `cosmic_config::Config::new`
-calls `create_dir_all` on `<id>/v<n>` before it reads a single key, so under a read-only view a
-directory the host has not created yet is a hard error — and libcosmic answers that by falling back
-to its built-in theme, silently, without a log line. A host whose COSMIC predates the theme config's
-`v1` → `v2` bump never creates `com.system76.CosmicTheme.Dark/v2`, so the applet would render with
-stock colours and corner radii while every other application looked right. The `dbus-config` feature
-does not change this: the settings daemon carries change notifications, the values themselves are
-read off the filesystem. Every other COSMIC Flatpak grants this directory read-write.
-
-Two rules keep the offline build working:
-
-**Do not pin a `rev` on the libcosmic dependency.** `cosmic-panel-config` reaches `cosmic-config`
-through the bare libcosmic URL, and a `rev` makes that a second, distinct Cargo source for the same
-repository. `flatpak-cargo-generator` emits one source replacement per URL, so the offline build
-then cannot resolve the unpinned copy. `Cargo.lock` already pins the exact commit, so builds stay
-reproducible without it.
-
-**Regenerate `cargo-sources.json` whenever `Cargo.lock` gains a package** — `just flatpak-sources`.
-Adding a dependency that is already in the tree does not: the generator enumerates the packages in
-the lock file, so a new edge to a crate that is already vendored changes nothing.
 
 ## How to test
 
