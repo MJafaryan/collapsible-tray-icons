@@ -25,31 +25,44 @@ flatpak-dir := 'flatpak' / appid
 manifest := flatpak-dir / appid + '.json'
 flatpak-build-dir := 'build' / 'flatpak'
 
-default: build-release
+# See the list of recipes
+default:
+    @just --list
 
+# Clean the build files
+[group: 'Development']
 clean:
     cargo clean
 
-clean-flatpak:
-    rm -rf build .flatpak-builder
-
+# Build the project for testing and development
+[group: 'Development']
 build-debug *args:
     cargo build {{args}}
 
+# Build project from source code
+[group: 'Build']
 build-release *args: (build-debug '--release' args)
 
+# Check the project codes
+[group: 'Development']
 check *args:
     cargo clippy --all-targets --all-features {{args}} -- -D warnings
 
+[group: 'Development']
 fmt:
     cargo fmt --all
 
+[group: 'Development']
 fmt-check:
     cargo fmt --all -- --check
 
+# Run the project test
+[group: 'Development']
 test *args:
     cargo test --features testkit {{args}}
 
+# Validate the project codes
+[group: 'Development']
 validate:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -60,28 +73,46 @@ validate:
     echo "desktop entry ok"
     appstreamcli validate --no-net resources/{{appid}}.metainfo.xml
 
+[group: 'Development']
 verify: fmt-check check test validate
 
+# Run project for test and development
+[group: 'Development']
 run *args:
     cargo run --bin {{name}} {{args}}
 
+# Run project for test and development
+[group: 'Development']
 run-dump *args:
     cargo run --bin {{name}}-dump {{args}}
 
+# Run project for test and development
+[group: 'Development']
 run-fake-item *args:
     cargo run --features testkit --example publish_item -- {{args}}
 
-install:
+# Build and install project from source code
+[group: 'Build']
+install: build-release
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0644 resources/{{appid}}.desktop {{desktop-dst}}
     install -Dm0644 resources/{{appid}}.metainfo.xml {{metainfo-dst}}
     install -Dm0644 resources/{{appid}}.svg {{icon-dst}}
     install -Dm0644 resources/{{appid}}-symbolic.svg {{symbolic-icon-dst}}
 
+# Build project for debian-based distros
+[group: 'Build']
+build-deb:
+    #!usr/bin/env bash
+
+# Uninstall manual installed project
+[group: 'Build']
 uninstall:
     rm -f {{bin-dst}} {{desktop-dst}} {{metainfo-dst}} {{icon-dst}} {{symbolic-icon-dst}}
 
-install-user:
+# Build and install project from source code just for current user
+[group: 'Build']
+install-user: build-release
     install -Dm0755 {{bin-src}} {{user-bin-dst}}
     install -Dm0644 resources/{{appid}}.metainfo.xml {{user-metainfo-dst}}
     install -Dm0644 resources/{{appid}}.svg {{user-icon-dst}}
@@ -91,33 +122,7 @@ install-user:
     chmod 0644 {{user-desktop-dst}}
     @echo "Installed. Add 'Status Hub' in Settings -> Desktop -> Panel -> Applets."
 
+# Uninstall manual installed project just for current user
+[group: 'Build']
 uninstall-user:
     rm -f {{user-bin-dst}} {{user-desktop-dst}} {{user-metainfo-dst}} {{user-icon-dst}} {{user-symbolic-icon-dst}}
-
-flatpak-sources:
-    flatpak run --filesystem="$(pwd)" --share=network \
-        --command=flatpak-cargo-generator org.flatpak.Builder \
-        "$(pwd)/Cargo.lock" -o "$(pwd)/{{flatpak-dir}}/cargo-sources.json"
-
-flatpak-build:
-    flatpak-builder --user --install --force-clean --ccache \
-        {{flatpak-build-dir}} {{manifest}}
-
-flatpak-build-local:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    local_manifest="{{flatpak-dir}}/local-test.json"
-    trap 'rm -f "${local_manifest}"' EXIT
-    python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); m["modules"][0]["sources"][0]={"type":"dir","path":"../..","skip":["target","build",".flatpak-builder",".git","flatpak"]}; json.dump(m,open(sys.argv[2],"w"),indent=2)' \
-        "{{manifest}}" "${local_manifest}"
-    flatpak-builder --user --install --force-clean --ccache \
-        {{flatpak-build-dir}}-local "${local_manifest}"
-
-flatpak-run *args:
-    flatpak run {{appid}} {{args}}
-
-flatpak-dump:
-    flatpak run --command={{name}}-dump {{appid}}
-
-flatpak-uninstall:
-    flatpak uninstall --user -y {{appid}}
